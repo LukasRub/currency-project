@@ -6,7 +6,7 @@ var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 
 var routes = require('./routes/index');
-var users = require('./routes/users');
+var rates = require('./routes/rates');
 
 var app = express();
 
@@ -22,8 +22,13 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
+app.set('json spaces', 5);
+
 app.use('/', routes);
-app.use('/users', users);
+app.get('/rates', rates.getAllProviders);
+app.get('/rates/:provider', rates.getSingleProvider);
+app.get('/rates/:provider/:currency', rates.getSingleProviderCurrency);
+
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
