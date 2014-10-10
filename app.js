@@ -4,6 +4,7 @@ var favicon = require('serve-favicon');
 var logger = require('morgan');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
+var moment = require('moment');
 
 var routes = require('./routes/index');
 var rates = require('./routes/rates');
@@ -13,6 +14,7 @@ var app = express();
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'jade');
+app.set('json spaces', 5);
 
 // uncomment after placing your favicon in /public
 //app.use(favicon(__dirname + '/public/favicon.ico'));
@@ -22,12 +24,12 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.set('json spaces', 5);
-
 app.use('/', routes);
-app.get('/rates', rates.getAllProviders);
-app.get('/rates/:provider', rates.getSingleProvider);
-app.get('/rates/:provider/:currency', rates.getSingleProviderCurrency);
+app.use('/rates', rates.getAllCurrencyRates);
+app.use('/rates/:provider', rates.getCurrencyRatesByProvider);
+app.use('/rates/:provider/:currency', rates.getCurrencyRatesByProviderByCurrency);
+app.use('/rates/:provider/:currency/:dateFrom', rates.getCurrencyRatesByProviderByCurrencyByDate);
+app.get('/rates/*', rates.respond);
 
 
 // catch 404 and forward to error handler
