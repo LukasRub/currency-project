@@ -1,61 +1,179 @@
 var moment = require('moment');
-var simpleObject = {
-    Swedbank: {
-        currencyRates: [
+var mongoose = require('mongoose');
+var ProviderSchema = require('../models/currencyProvider.js').providerSchema;
+mongoose.connect('mongodb://localhost/myDB');
+
+var simpleObject = [
+    {
+        "title": "Swedbank",
+        "website": "http://www.swedbank.lt/lt/pages/privatiems/valiutu_kursai",
+        "recordsTable":  [
             {
-                Date: '2014-10-09',
-                USD: '2.7324',
-                EUR: '3.4528',
-                GBP: '4.3902'
+                "date": "2014-10-09",
+                "currencyTable": [
+                    {
+                        "isoCode" : "USD",
+                        "delta": ">",
+                        "currencyRates": ["2.7324"]
+                    },
+                    {
+                        "isoCode" : "EUR",
+                        "delta": ">",
+                        "currencyRates": ["3.4528"]
+                    },
+                    {
+                        "isoCode" : "GBP",
+                        "delta": ">",
+                        "currencyRates": ["4.3902"]
+                    }
+                ]
             },
             {
-                Date: '2014-10-08',
-                USD: '2.7325',
-                EUR: '3.4529',
-                GBP: '4.3903'
+                "date": "2014-10-08",
+                "currencyTable": [
+                    {
+                        "isoCode" : "USD",
+                        "delta": ">",
+                        "currencyRates": ["2.7325"]
+                    },
+                    {
+                        "isoCode" : "EUR",
+                        "delta": ">",
+                        "currencyRates": ["3.4529"]
+                    },
+                    {
+                        "isoCode" : "GBP",
+                        "delta": ">",
+                        "currencyRates": ["4.3902"]
+                    }
+                ]
             },
             {
-                Date: '2014-10-07',
-                USD: '2.7326',
-                EUR: '3.4530',
-                GBP: '4.3903'
+                "date": "2014-10-07",
+                "currencyTable": [
+                    {
+                        "isoCode" : "USD",
+                        "delta": "",
+                        "currencyRates": ["2.7326"]
+                    },
+                    {
+                        "isoCode" : "EUR",
+                        "delta": "",
+                        "currencyRates": ["3.4530"]
+                    },
+                    {
+                        "isoCode" : "GBP",
+                        "delta": "",
+                        "currencyRates": ["4.3903"]
+                    }
+                ]
             }
         ]
     },
-    Danske: {
-        currencyRates: [
+    {
+        "title": "Danskebank",
+        "website": "https://www.danskebank.lt/index.php/privatiems/kasdienes-paslaugos/valiutos-keitimas/60",
+        "recordsTable":  [
             {
-                Date: '2014-10-09',
-                USD: '2.8324',
-                EUR: '3.5528',
-                GBP: '4.4902'
-
+                "date": "2014-10-09",
+                "currencyTable": [
+                    {
+                        "isoCode" : "USD",
+                        "delta": ">",
+                        "currencyRates": ["2.8324"]
+                    },
+                    {
+                        "isoCode" : "EUR",
+                        "delta": ">",
+                        "currencyRates": ["3.5528"]
+                    },
+                    {
+                        "isoCode" : "GBP",
+                        "delta": ">",
+                        "currencyRates": ["4.4902"]
+                    }
+                ]
             },
             {
-                Date: '2014-10-08',
-                USD: '2.9325',
-                EUR: '3.6529',
-                GBP: '4.5903'
+                "date": "2014-10-08",
+                "currencyTable": [
+                    {
+                        "isoCode" : "USD",
+                        "delta": ">",
+                        "currencyRates": ["2.9325"]
+                    },
+                    {
+                        "isoCode" : "EUR",
+                        "delta": ">",
+                        "currencyRates": ["3.6529"]
+                    },
+                    {
+                        "isoCode" : "GBP",
+                        "delta": ">",
+                        "currencyRates": ["4.5903"]
+                    }
+                ]
             },
             {
-                Date: '2014-10-07',
-                USD: '3.0326',
-                EUR: '3.7530',
-                GBP: '4.6903'
+                "date": "2014-10-07",
+                "currencyTable": [
+                    {
+                        "isoCode" : "USD",
+                        "delta": "",
+                        "currencyRates": ["3.0326"]
+                    },
+                    {
+                        "isoCode" : "EUR",
+                        "delta": "",
+                        "currencyRates": ["3.7530"]
+                    },
+                    {
+                        "isoCode" : "GBP",
+                        "delta": "",
+                        "currencyRates": ["4.6903"]
+                    }
+                ]
             }
         ]
     }
-};
+];
 
-exports.getAllCurrencyRates = function(req, res, next){
-    req.responseObject = simpleObject;
-    next();
+exports.updateAllCurrencyProviders = function(req, res, next){
+
+    var Provider = mongoose.model('Provider', ProviderSchema);
+
+//    var currencyProvider = new Provider(simpleObject[0]);
+//    currencyProvider.save(function(err){
+//        if (err) throw 'Error';
+//    });
+//    var currencyProvider = new Provider(simpleObject[1]);
+//    currencyProvider.save(function(err){
+//        if (err) throw 'Error';
+//    });
+
+//    Provider.findOneAndUpdate({title: "Swedbank"}, simpleObject[0], function(err, result){
+//    });
+//
+//    Provider.findOneAndUpdate({title: "Danskebank"}, simpleObject[1], function(err, result){
+//    });
+
+    Provider.findOne({title: "Swedbank"}).select('-_id -__v').exec(function(err,result){
+        var table = result.recordsTable.filter(function(record){
+//            console.log(record);
+            return moment(record.date).format("YYYY-MM-DD") === "2014-10-09";
+        });
+        console.log(table);
+        req.responseObject = result || {};
+        next();
+    });
+
 
 };
 
 exports.getCurrencyRatesByProvider = function(req, res, next){
     var provider = req.param('provider');
-    req.responseObject = getProviderOrEmpty(req.responseObject, provider);
+    var allCurrencyProviders = req.responseObject;
+    req.responseObject = getProviderOrEmpty(allCurrencyProviders, provider);
     next();
 
 };
@@ -63,7 +181,8 @@ exports.getCurrencyRatesByProvider = function(req, res, next){
 
 exports.getCurrencyRatesByProviderByCurrency = function(req, res, next){
     var currency = req.param('currency');
-    req.responseObject = getCurrencyRatesOrEmpty(req.responseObject, currency);
+    var allCurrencyRates = req.responseObject;
+    req.responseObject = getCurrencyRatesOrEmpty(allCurrencyRates, currency);
     next();
 
 };
@@ -79,19 +198,26 @@ exports.respond = function(req, res){
     res.json(req.responseObject);
 };
 
-function getProviderOrEmpty(responseObject, provider){
-    return responseObject[provider] || {};
+exports.updateAllCurrencyProviders1 = function(){
+//    console.log("Hello");
 }
 
-function getCurrencyRatesOrEmpty(responseObject, currency){
-    var requestedCurrencies = {};
-    var currencyRates = responseObject['currencyRates'];
-    if (currencyRates !== undefined){
-        for(var i = 0; i < currencyRates.length; i++){
-            requestedCurrencies[currencyRates[i]['Date']] = currencyRates[i][currency];
-        }
-    }
-    return requestedCurrencies;
+function getProviderOrEmpty(allCurrencyProviders, provider){
+    var requestedProvider = allCurrencyProviders.filter(function(element){
+        return element.title === provider;
+    }).pop() || {};
+    return requestedProvider.recordsTable || {};
+}
+
+function getCurrencyRatesOrEmpty(allCurrencyRates, currency){
+    var requestedCurrencyRates = {};
+    console.log(allCurrencyRates);
+//    if (currencyRates !== undefined){
+//        for(var i = 0; i < currencyRates.length; i++){
+//            requestedCurrencyRates[currencyRates[i]['Date']] = currencyRates[i][currency];
+//        }
+//    }
+    return requestedCurrencyRates;
 }
 
 function getCurrencyHistory(responseObject, dateFrom){

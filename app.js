@@ -14,7 +14,7 @@ var app = express();
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'jade');
-app.set('json spaces', 5);
+app.set('json spaces', 3);
 
 // uncomment after placing your favicon in /public
 //app.use(favicon(__dirname + '/public/favicon.ico'));
@@ -24,8 +24,12 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
+setInterval(function(){
+    rates.updateAllCurrencyProviders1();
+}, 5*1000);
+
 app.use('/', routes);
-app.use('/rates', rates.getAllCurrencyRates);
+app.use('/rates', rates.updateAllCurrencyProviders);
 app.use('/rates/:provider', rates.getCurrencyRatesByProvider);
 app.use('/rates/:provider/:currency', rates.getCurrencyRatesByProviderByCurrency);
 app.use('/rates/:provider/:currency/:dateFrom', rates.getCurrencyRatesByProviderByCurrencyByDate);
