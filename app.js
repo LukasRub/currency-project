@@ -4,10 +4,10 @@ var favicon = require('serve-favicon');
 var logger = require('morgan');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
-var moment = require('moment');
 
 var routes = require('./routes/index');
 var rates = require('./routes/rates');
+var scrapers = require('./tools/scrapers');
 
 var app = express();
 
@@ -24,16 +24,18 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-setInterval(function(){
-    rates.updateAllCurrencyProviders1();
-}, 5*1000);
+//setInterval(function(){
+//    scrapers.updateAllCurrencyProviders();
+//}, 5*1000);
+
+scrapers.updateAllCurrencyProviders();
 
 app.use('/', routes);
-app.use('/rates', rates.updateAllCurrencyProviders);
+app.use('/rates', rates.getAvailableProviders);
 app.use('/rates/:provider', rates.getCurrencyRatesByProvider);
-app.use('/rates/:provider/:currency', rates.getCurrencyRatesByProviderByCurrency);
-app.use('/rates/:provider/:currency/:dateFrom', rates.getCurrencyRatesByProviderByCurrencyByDate);
-app.get('/rates/*', rates.respond);
+app.use('/rates/:provider/:dateFrom', rates.getCurrencyRatesByProviderByDate);
+app.use('/rates/:provider/:dateFrom/:currency', rates.getCurrencyRatesByProviderByDateByCurrency);
+app.get('/rates/*', rates.renderResponse);
 
 
 // catch 404 and forward to error handler

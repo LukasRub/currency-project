@@ -1,13 +1,15 @@
 var moment = require('moment');
+var async = require('async');
 var mongoose = require('mongoose');
 var ProviderSchema = require('../models/currencyProvider.js').providerSchema;
+
 mongoose.connect('mongodb://localhost/myDB');
 
 var simpleObject = [
     {
         "title": "Swedbank",
         "website": "http://www.swedbank.lt/lt/pages/privatiems/valiutu_kursai",
-        "recordsTable":  [
+        "recordTable":  [
             {
                 "date": "2014-10-09",
                 "currencyTable": [
@@ -73,7 +75,7 @@ var simpleObject = [
     {
         "title": "Danskebank",
         "website": "https://www.danskebank.lt/index.php/privatiems/kasdienes-paslaugos/valiutos-keitimas/60",
-        "recordsTable":  [
+        "recordTable":  [
             {
                 "date": "2014-10-09",
                 "currencyTable": [
@@ -138,105 +140,158 @@ var simpleObject = [
     }
 ];
 
-exports.updateAllCurrencyProviders = function(req, res, next){
+exports.getAvailableProviders = function(req, res, next) {
 
-    var Provider = mongoose.model('Provider', ProviderSchema);
+    var ProviderModel = mongoose.model('Provider', ProviderSchema);
+    var fields = '-_id -__v -recordTable._id -recordTable.currencyTable._id';
 
-//    var currencyProvider = new Provider(simpleObject[0]);
-//    currencyProvider.save(function(err){
-//        if (err) throw 'Error';
-//    });
-//    var currencyProvider = new Provider(simpleObject[1]);
-//    currencyProvider.save(function(err){
-//        if (err) throw 'Error';
-//    });
+    constructCurrencyProviders();
 
-//    Provider.findOneAndUpdate({title: "Swedbank"}, simpleObject[0], function(err, result){
-//    });
-//
-//    Provider.findOneAndUpdate({title: "Danskebank"}, simpleObject[1], function(err, result){
-//    });
-
-    Provider.findOne({title: "Swedbank"}).select('-_id -__v').exec(function(err,result){
-        var table = result.recordsTable.filter(function(record){
-//            console.log(record);
-            return moment(record.date).format("YYYY-MM-DD") === "2014-10-09";
-        });
-        console.log(table);
+    ProviderModel.find({}).select(fields).exec(function(err, result) {
         req.responseObject = result || {};
         next();
     });
 
+};
+
+exports.getCurrencyRatesByProvider = function(req, res, next) {
+
+    var reqestedProvider = req.param('provider');
+    var ProviderModel = mongoose.model('Provider', ProviderSchema);
+    var fields = '-_id -__v -recordTable._id -recordTable.currencyTable._id';
+
+    ProviderModel.findOne({title: reqestedProvider}).select(fields).exec(function(error, result) {
+        req.responseObject = result.toJSON() || {};
+        next();
+    });
 
 };
 
-exports.getCurrencyRatesByProvider = function(req, res, next){
-    var provider = req.param('provider');
-    var allCurrencyProviders = req.responseObject;
-    req.responseObject = getProviderOrEmpty(allCurrencyProviders, provider);
+exports.getCurrencyRatesByProviderByDate = function(req, res, next) {
+
+    var requestedDateFrom = req.param('dateFrom');
+
+    if (req.responseObject.title) {
+        var currencyRecordsTable = req.responseObject.recordTable;
+        req.responseObject.recordTable = filterRecordsByDate(currencyRecordsTable, requestedDateFrom);
+    };
+
     next();
-
 };
 
+exports.getCurrencyRatesByProviderByDateByCurrency = function(req, res, next) {
 
-exports.getCurrencyRatesByProviderByCurrency = function(req, res, next){
-    var currency = req.param('currency');
-    var allCurrencyRates = req.responseObject;
-    req.responseObject = getCurrencyRatesOrEmpty(allCurrencyRates, currency);
+    var requestedCurrency = req.param('currency');
+
+    if(req.responseObject.recordTable.length > 0) {
+        var currencyRecordTable = req.responseObject.recordTable;
+        req.responseObject.recordTable = filterRecordsByCurrency(currencyRecordTable, requestedCurrency);
+    }
+
     next();
-
 };
 
-exports.getCurrencyRatesByProviderByCurrencyByDate = function(req, res, next){
-    var dateFrom = req.param('dateFrom');
-    req.responseObject = getCurrencyHistory(req.responseObject, dateFrom);
-    next();
-
-};
-
-exports.respond = function(req, res){
+exports.renderResponse = function(req, res) {
     res.json(req.responseObject);
 };
 
-exports.updateAllCurrencyProviders1 = function(){
-//    console.log("Hello");
-}
+function filterRecordsByDate(allCurrencyRates, requestedDateFrom) {
 
-function getProviderOrEmpty(allCurrencyProviders, provider){
-    var requestedProvider = allCurrencyProviders.filter(function(element){
-        return element.title === provider;
-    }).pop() || {};
-    return requestedProvider.recordsTable || {};
-}
+    var requestedCurrencyHistory = [];
 
-function getCurrencyRatesOrEmpty(allCurrencyRates, currency){
-    var requestedCurrencyRates = {};
-    console.log(allCurrencyRates);
-//    if (currencyRates !== undefined){
-//        for(var i = 0; i < currencyRates.length; i++){
-//            requestedCurrencyRates[currencyRates[i]['Date']] = currencyRates[i][currency];
-//        }
-//    }
-    return requestedCurrencyRates;
-}
+    if (isValidDate(requestedDateFrom)) {
+        async.filter(allCurrencyRates, function(item, callback) {
 
-function getCurrencyHistory(responseObject, dateFrom){
-    var requestedCurrencyHistory = {};
-    if (isValidDate(dateFrom)){
-        var safeDateFrom = moment(dateFrom, 'YYYY-MM-DD', true).subtract(1, 'days');
-        var safeDateNow = moment().startOf('day');
-        while (!safeDateNow.isSame(safeDateFrom)) {
-            var tempDateString = safeDateFrom.add(1,'days').format("YYYY-MM-DD");
-            requestedCurrencyHistory[tempDateString] = responseObject[tempDateString] || "";
-        }
+            callback(moment(item.date).isAfter(moment(requestedDateFrom)));
+
+        }, function(results) {
+
+            requestedCurrencyHistory = results;
+
+        });
     }
-    return requestedCurrencyHistory;
-}
 
-function isValidDate(givenDate){
+    return requestedCurrencyHistory;
+};
+
+function filterRecordsByCurrency(currencyRecordTable, requestedCurrency) {
+    var requestedCurrencyHistory = [];
+
+    async.each(currencyRecordTable, function(record, callback) {
+
+        var currencyRecord;
+
+        async.filter(record.currencyTable, function(item, callback) {
+            callback(item['isoCode'] === requestedCurrency);
+        }, function(results) {
+            currencyRecord = results[0];    // only one element inside the array
+        })
+
+        if (currencyRecord !== undefined) {
+            requestedCurrencyHistory.push({
+                'date': record.date,
+                'isoCode': currencyRecord['isoCode'],
+                'delta': currencyRecord['delta'],
+                'currencyRates': currencyRecord['currencyRates']
+            });
+        }
+
+    }, function(error) {
+
+    });
+
+    return requestedCurrencyHistory;
+};
+
+function isValidDate(givenDate) {
+
     var isValidDate = false;
     var safeGivenDate = moment(givenDate, 'YYYY-MM-DD', true);
-    if (safeGivenDate.isValid() && safeGivenDate.isBefore(moment()))
+
+    if (safeGivenDate.isValid() && safeGivenDate.isBefore(moment())) {
         isValidDate = true;
+    }
     return isValidDate;
+};
+
+function constructCurrencyProviders() {
+    constructSwedbank();
+};
+
+function constructSwedbank() {
+    var swedbankdISO = ['AUD', 'BGN', 'CAD', 'CHF', 'CZK', 'DKK', 'EUR', 'GBP', 'HKD', 'HRK', 'HUF', 'JPY', 'NOK', 'PLN',
+        'RON', 'RSD', 'RUB', 'SEK', 'SGD', 'USD'];
+    var recordTable = constructRecordTable(constructCurrencyTable(swedbankdISO));
+//    console.log(recordTable);
+};
+
+function constructCurrencyTable(ISOarray) {
+    var currencyTable = [];
+    for(var i = 0; i < ISOarray.length; i++) {
+        currencyTable.push({
+            'isoCode': ISOarray[i],
+            'delta': '',
+            'currencyRates': ['1', '1', '1', '1']
+        });
+    }
+    return currencyTable;
+};
+
+function constructRecordTable(currencyTable) {
+    var recordTable = [];
+
+    var newestRecord = moment().startOf('day');
+    var oldestRecord = moment().subtract(90,'days').startOf('day');
+
+    while(oldestRecord.isBefore(newestRecord)) {
+        recordTable.push({
+            'date': newestRecord.format('YYYY-MM-DD'),
+            'currencyTable': currencyTable
+        });
+        newestRecord.subtract(1,'days');
+    }
+
+    console.log(recordTable);
+
+    return recordTable;
 }
