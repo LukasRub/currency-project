@@ -74,7 +74,7 @@ var simpleObject = [
     },
     {
         "title": "Danskebank",
-        "website": "https://www.danskebank.lt/index.php/privatiems/kasdienes-paslaugos/valiutos-keitimas/60",
+        "website": "http://www.danskebank.lt/index.php/privatiems/kasdienes-paslaugos/valiutos-keitimas/60",
         "recordTable":  [
             {
                 "date": "2014-10-09",
@@ -144,6 +144,7 @@ exports.getAvailableProviders = function(req, res, next) {
 
     var ProviderModel = mongoose.model('Provider', ProviderSchema);
     var fields = '-_id -__v -recordTable._id -recordTable.currencyTable._id';
+    var fields = '-_id -__v -recordTable';
 
     constructCurrencyProviders();
 
@@ -205,9 +206,7 @@ function filterRecordsByDate(allCurrencyRates, requestedDateFrom) {
             callback(moment(item.date).isAfter(moment(requestedDateFrom)));
 
         }, function(results) {
-
             requestedCurrencyHistory = results;
-
         });
     }
 
@@ -255,14 +254,49 @@ function isValidDate(givenDate) {
 };
 
 function constructCurrencyProviders() {
-    constructSwedbank();
+
+    var ProviderModel = mongoose.model('Provider', ProviderSchema);
+
+    var options = { upsert: true };
+
+    var query = { 'title': 'Danskebank' };
+    var update = constructDanskebank();
+    ProviderModel.findOneAndUpdate(query, update, options, function(err, result) { });
+
+    var query = { 'title': 'Swedbank' };
+    var update = constructSwedbank();
+//    ProviderModel.findOneAndUpdate(query, update, options, function(err, result) { });
+
 };
 
 function constructSwedbank() {
     var swedbankdISO = ['AUD', 'BGN', 'CAD', 'CHF', 'CZK', 'DKK', 'EUR', 'GBP', 'HKD', 'HRK', 'HUF', 'JPY', 'NOK', 'PLN',
         'RON', 'RSD', 'RUB', 'SEK', 'SGD', 'USD'];
-    var recordTable = constructRecordTable(constructCurrencyTable(swedbankdISO));
-//    console.log(recordTable);
+    var bankObject = {
+        "title": "Swedbank",
+        "websiteData": {
+            "URL": "http://www.swedbank.lt/lt/pages/privatiems/valiutu_kursai",
+            "tableSelector": ".dataTable",
+            "headerRows": 2
+        },
+        "recordTable": constructRecordTable(constructCurrencyTable(swedbankdISO))
+    };
+    return bankObject;
+};
+
+function constructDanskebank() {
+    var danskeBankISO = ['EUR', 'USD', 'GBP', 'PLN', 'SEK', 'NOK', 'DKK', 'CZK', 'CHF', 'AUD', 'BGN', 'HKD', 'ILS',
+        'AED', 'JPY', 'CAD', 'MXN', 'TRY', 'NZD', 'ZAR', 'RON', 'RUB', 'SAR', 'SGD', 'TND', 'HUF'];
+    var bankObject = {
+        "title": "Danskebank",
+        "websiteData": {
+            "URL": "http://www.danskebank.lt/index.php/privatiems/kasdienes-paslaugos/valiutos-keitimas/60",
+            "tableSelector": "#element_currencies_table tbody",
+            "headerRows": 5
+        },
+        "recordTable": constructRecordTable(constructCurrencyTable(danskeBankISO))
+    }
+    return bankObject;
 };
 
 function constructCurrencyTable(ISOarray) {
@@ -290,8 +324,6 @@ function constructRecordTable(currencyTable) {
         });
         newestRecord.subtract(1,'days');
     }
-
-    console.log(recordTable);
 
     return recordTable;
 }

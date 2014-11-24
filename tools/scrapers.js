@@ -5,63 +5,96 @@ var request = require('request');
 var cheerio = require('cheerio');
 var async = require('async');
 var mongoose = require('mongoose');
+var moment = require('moment');
+var formatters = require('./formatters.js');
 var ProviderSchema = require('../models/currencyProvider.js').providerSchema;
 
 exports.updateAllCurrencyProviders = function() {
-    async.parallel(
-        [
-            updateSwedbank()
-        ],
-        function(err, result) {
-            console.log(result);
-        }
-    );
-};
-
-function updateSwedbank() {
-
     var ProviderModel = mongoose.model('Provider', ProviderSchema);
-    var fields = '-_id -__v -recordTable';
+    var fields = '-_id -__v -recordTable._id -recordTable.currencyTable._id';
     var bankObject = {};
 
 
     ProviderModel.findOne({title: 'Swedbank'}).select(fields).exec(function(error, result){
         bankObject = result.toJSON();
-        scrapSwedbank(bankObject);
+        updateProvider(bankObject);
     });
 
-}
+    ProviderModel.findOne({title: 'Danskebank'}).select(fields).exec(function(error, result){
+        bankObject = result.toJSON();
+        updateProvider(bankObject);
+    });
 
-function scrapSwedbank(bankObject) {
+};
 
-    request(bankObject.website, function(error, response, html) {
+function updateProvider(bankObject) {
+
+    async.waterfall([
+        function(callback) {
+            scrapProvider(callback, bankObject.websiteData, bankObject.title);
+        },
+        function(rawCurrencyRates, callback) {
+            formatNewRecord(callback, rawCurrencyRates, bankObject.recordTable.slice(0, 2));
+        }
+
+    ], function(callback, currencyRates) {
+//            console.log(currencyRates);
+       }
+    );
+
+};
+
+function scrapProvider(callback, websiteData, title) {
+
+    request(websiteData.URL, function(error, response, html) {
+
+        var currencyRates = [];
 
         if (!error) {
 
             var $ = cheerio.load(html);
 
-            $('.dataTable').filter(function() {
+            $(websiteData.tableSelector).filter(function() {
 
-                var data = $(this).children().slice(2);
-                var array = [];
+                var index = 0;
 
-                data.each(function(i, elem) {
-                    array[i] = formatSwedbankCurrencyRow($(elem));
+                var data = $(this).children().slice(websiteData.headerRows);
+
+                async.each(data, function(record, callback) {
+
+                    if ($(record).text().trim().length > 0)
+                        currencyRates[index++] = formatters[title]($(record));
+
+                }, function(error) {
                 });
 
-                console.log(array);
+                console.log(currencyRates);
+
+                callback(null, currencyRates);
 
             });
 
         }
 
-    });
-}
+        callback(null, currencyRates);
 
-function formatSwedbankCurrencyRow(data) {
-    return data.text().trim() // removes preceding and succeeding newline and whitespace characters
-        .replace(/\([^)]*\)/g, '') // 'USD (JAV doleris)' ==> 'USD'
-        .replace(/\s\s+/g, ' ') // removes inner newline and whitespace characters
-        .split(' ') // split into an array
-        .slice(0, 5); // ignore the last column
+
+    });
+
+};
+
+function formatNewRecord(callback, rawData, lastRecords) {
+    var newRecord = {};
+    var todayDate = moment().startOf('day');
+
+//    if (wasThisDayRecorded(lastRecords))
+
+    var smth = moment(lastRecords[0].date).startOf('day').isSame(todayDate);
+//    console.log(smth);
+
+    callback(null, newRecord);
+};
+
+function wasThisDayRecorded() {
+
 }

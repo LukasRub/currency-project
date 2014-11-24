@@ -3,20 +3,23 @@
  */
 var mongoose = require('mongoose');
 
-exports.currencySchema = new mongoose.Schema({
+var currencySchema = new mongoose.Schema({
     isoCode: String,
     delta: String, default: "",
     currencyRates: [String]
 });
 
-exports.recordSchema = new mongoose.Schema({
+var recordSchema = new mongoose.Schema({
     date: Date,
-    currencyTable: [exports.currencySchema]
+    currencyTable: [currencySchema]
 });
 
 exports.providerSchema = new mongoose.Schema({
     title: String,
-    website: String,
-    recordTable: [exports.recordSchema]
+    websiteData: {
+        URL: String,
+        tableSelector: String,
+        headerRows: Number
+    },
+    recordTable: [recordSchema]
 });
-
