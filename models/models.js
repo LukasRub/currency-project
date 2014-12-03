@@ -9,17 +9,16 @@ var currencySchema = new mongoose.Schema({
     currencyRates: [String]
 });
 
-var recordSchema = new mongoose.Schema({
-    date: Date,
+var recordSchema = recordSchema = new mongoose.Schema({
+    date: String,
     currencyTable: [currencySchema]
 });
 
-exports.providerSchema = new mongoose.Schema({
+var providerSchema = new mongoose.Schema({
     title: String,
-    websiteData: {
-        URL: String,
-        tableSelector: String,
-        headerRows: Number
-    },
+    dateCreated: String,
+    dateUpdated: String,
     recordTable: [recordSchema]
 });
+
+exports.ProviderModel = mongoose.model('ProviderSchema', providerSchema, 'providers');

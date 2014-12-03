@@ -1,100 +1,114 @@
 /**
  * Created by lukas on 14.11.4.
  */
-var request = require('request');
+
 var cheerio = require('cheerio');
 var async = require('async');
-var mongoose = require('mongoose');
 var moment = require('moment');
-var formatters = require('./formatters.js');
-var ProviderSchema = require('../models/currencyProvider.js').providerSchema;
+var bluebird = require('bluebird');
+var request = bluebird.promisify(require('request'));
+
+var providers = require('../providers/providers.js');
+var updaters = require('./updaters.js');
 
 exports.updateAllCurrencyProviders = function() {
-    var ProviderModel = mongoose.model('Provider', ProviderSchema);
-    var fields = '-_id -__v -recordTable._id -recordTable.currencyTable._id';
-    var bankObject = {};
-
-
-    ProviderModel.findOne({title: 'Swedbank'}).select(fields).exec(function(error, result){
-        bankObject = result.toJSON();
-        updateProvider(bankObject);
+    providers.forEach(function(provider){
+        async.seq(
+            scrapProvider,
+            formatRawData,
+            findDeltas
+        )(provider, function(err, provider, newRecord){
+            updaters.saveNewData(provider, newRecord);
+        });
     });
-
-    ProviderModel.findOne({title: 'Danskebank'}).select(fields).exec(function(error, result){
-        bankObject = result.toJSON();
-        updateProvider(bankObject);
-    });
-
 };
 
-function updateProvider(bankObject) {
+function scrapProvider(bankObject, callback) {
+    var scrapResults = [];
+    request(bankObject.scrapPageData.URL).spread(function(response, body) {
+        var $ = cheerio.load(body, {
+            normalizeWhitespace: true,
+            xmlMode: bankObject.scrapPageData.XML
+        });
+        var index = 0;
+        var rawData = $(bankObject.scrapPageData.tableSelector)
+            .children()
+            .slice(bankObject.scrapPageData.tableHeaderRows);
+//        console.log(rawData);
+        async.each(rawData, function(row){
+//            console.log(row);
+//            if ($(row).text().trim().length > 0) {
 
-    async.waterfall([
-        function(callback) {
-            scrapProvider(callback, bankObject.websiteData, bankObject.title);
-        },
-        function(rawCurrencyRates, callback) {
-            formatNewRecord(callback, rawCurrencyRates, bankObject.recordTable.slice(0, 2));
+                var rowFormatterResult = bankObject.rowFormatter($(row));
+                if (rowFormatterResult)
+                    scrapResults[index++] = rowFormatterResult;
+//            }
+        });
+    }).finally(function(){
+        callback(null, bankObject.tableFormatter(scrapResults), bankObject.title);
+    });
+}
+
+function formatRawData(rawData, providerTitle, callback) {
+    var record = {
+        date: moment().format(),
+        currencyTable: []
+    };
+    var index = 0;
+    async.each(rawData, function(row) {
+        var currencyRecord =
+        record.currencyTable[index++] = {
+            isoCode: row[0],
+            delta: "",
+            currencyRates: row.slice(1)
+        };
+    });
+    callback(null, record, providerTitle);
+}
+
+function findDeltas(newRecord, providerTitle, callback) {
+    async.parallel([
+        async.apply(updaters.getProviderAsync, providerTitle)
+    ], function(err, result){
+        var providerObject = {};
+        if (result) {
+            providerObject = result[0].toJSON();
+            if(deltaExist(providerObject, newRecord.date)) {
+                var index = findLatestRecordIndex(providerObject.recordTable, newRecord.date);
+                var latestRecord = providerObject.recordTable[index];
+                for(var i = 0; i < newRecord.currencyTable.length; i++) {
+                    var relevantNewRow = newRecord.currencyTable[i];
+                    var relevantLatestRow = latestRecord.currencyTable[i];
+                    var compareIndex = relevantNewRow.currencyRates.length - 1;
+                    newRecord.currencyTable[i].delta =
+                        determineDelta(relevantNewRow.currencyRates[compareIndex],
+                            relevantLatestRow.currencyRates[compareIndex]);
+                }
+            }
         }
-
-    ], function(callback, currencyRates) {
-//            console.log(currencyRates);
-       }
-    );
-
-};
-
-function scrapProvider(callback, websiteData, title) {
-
-    request(websiteData.URL, function(error, response, html) {
-
-        var currencyRates = [];
-
-        if (!error) {
-
-            var $ = cheerio.load(html);
-
-            $(websiteData.tableSelector).filter(function() {
-
-                var index = 0;
-
-                var data = $(this).children().slice(websiteData.headerRows);
-
-                async.each(data, function(record, callback) {
-
-                    if ($(record).text().trim().length > 0)
-                        currencyRates[index++] = formatters[title]($(record));
-
-                }, function(error) {
-                });
-
-                console.log(currencyRates);
-
-                callback(null, currencyRates);
-
-            });
-
-        }
-
-        callback(null, currencyRates);
-
-
+        callback(null, providerObject, newRecord);
     });
+}
 
-};
+function deltaExist(providerObject, newRecordDate){
+    return !((providerObject.dateUpdated === null)
+        || (moment(providerObject.dateUpdated).isSame(newRecordDate, 'day')
+            && (providerObject.recordTable.length === 1)));
+}
 
-function formatNewRecord(callback, rawData, lastRecords) {
-    var newRecord = {};
-    var todayDate = moment().startOf('day');
+function findLatestRecordIndex(recordTable, newRecordDate) {
+    return moment(recordTable[0].date).isSame(newRecordDate, 'day') ? 1 : 0;
+}
 
-//    if (wasThisDayRecorded(lastRecords))
+function determineDelta(newValue, latestValue){
+    var deltaDictionary = {
+        '0': '=',
+        '-1': '>',
+        '1': '<'
+    };
+    return deltaDictionary[valueCompare(newValue, latestValue)];
+}
 
-    var smth = moment(lastRecords[0].date).startOf('day').isSame(todayDate);
-//    console.log(smth);
-
-    callback(null, newRecord);
-};
-
-function wasThisDayRecorded() {
-
+function valueCompare(first, second) {
+    return (first > second ? -1 : (first < second ? 1 : 0));
 }

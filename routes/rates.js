@@ -1,231 +1,71 @@
 var moment = require('moment');
 var async = require('async');
-var mongoose = require('mongoose');
-var ProviderSchema = require('../models/currencyProvider.js').providerSchema;
+var updaters = require('../tools/updaters');
 
-mongoose.connect('mongodb://localhost/myDB');
-
-var simpleObject = [
-    {
-        "title": "Swedbank",
-        "website": "http://www.swedbank.lt/lt/pages/privatiems/valiutu_kursai",
-        "recordTable":  [
-            {
-                "date": "2014-10-09",
-                "currencyTable": [
-                    {
-                        "isoCode" : "USD",
-                        "delta": ">",
-                        "currencyRates": ["2.7324"]
-                    },
-                    {
-                        "isoCode" : "EUR",
-                        "delta": ">",
-                        "currencyRates": ["3.4528"]
-                    },
-                    {
-                        "isoCode" : "GBP",
-                        "delta": ">",
-                        "currencyRates": ["4.3902"]
-                    }
-                ]
-            },
-            {
-                "date": "2014-10-08",
-                "currencyTable": [
-                    {
-                        "isoCode" : "USD",
-                        "delta": ">",
-                        "currencyRates": ["2.7325"]
-                    },
-                    {
-                        "isoCode" : "EUR",
-                        "delta": ">",
-                        "currencyRates": ["3.4529"]
-                    },
-                    {
-                        "isoCode" : "GBP",
-                        "delta": ">",
-                        "currencyRates": ["4.3902"]
-                    }
-                ]
-            },
-            {
-                "date": "2014-10-07",
-                "currencyTable": [
-                    {
-                        "isoCode" : "USD",
-                        "delta": "",
-                        "currencyRates": ["2.7326"]
-                    },
-                    {
-                        "isoCode" : "EUR",
-                        "delta": "",
-                        "currencyRates": ["3.4530"]
-                    },
-                    {
-                        "isoCode" : "GBP",
-                        "delta": "",
-                        "currencyRates": ["4.3903"]
-                    }
-                ]
-            }
-        ]
-    },
-    {
-        "title": "Danskebank",
-        "website": "http://www.danskebank.lt/index.php/privatiems/kasdienes-paslaugos/valiutos-keitimas/60",
-        "recordTable":  [
-            {
-                "date": "2014-10-09",
-                "currencyTable": [
-                    {
-                        "isoCode" : "USD",
-                        "delta": ">",
-                        "currencyRates": ["2.8324"]
-                    },
-                    {
-                        "isoCode" : "EUR",
-                        "delta": ">",
-                        "currencyRates": ["3.5528"]
-                    },
-                    {
-                        "isoCode" : "GBP",
-                        "delta": ">",
-                        "currencyRates": ["4.4902"]
-                    }
-                ]
-            },
-            {
-                "date": "2014-10-08",
-                "currencyTable": [
-                    {
-                        "isoCode" : "USD",
-                        "delta": ">",
-                        "currencyRates": ["2.9325"]
-                    },
-                    {
-                        "isoCode" : "EUR",
-                        "delta": ">",
-                        "currencyRates": ["3.6529"]
-                    },
-                    {
-                        "isoCode" : "GBP",
-                        "delta": ">",
-                        "currencyRates": ["4.5903"]
-                    }
-                ]
-            },
-            {
-                "date": "2014-10-07",
-                "currencyTable": [
-                    {
-                        "isoCode" : "USD",
-                        "delta": "",
-                        "currencyRates": ["3.0326"]
-                    },
-                    {
-                        "isoCode" : "EUR",
-                        "delta": "",
-                        "currencyRates": ["3.7530"]
-                    },
-                    {
-                        "isoCode" : "GBP",
-                        "delta": "",
-                        "currencyRates": ["4.6903"]
-                    }
-                ]
-            }
-        ]
-    }
-];
-
-exports.getAvailableProviders = function(req, res, next) {
-
-    var ProviderModel = mongoose.model('Provider', ProviderSchema);
-    var fields = '-_id -__v -recordTable._id -recordTable.currencyTable._id';
-    var fields = '-_id -__v -recordTable';
-
-    constructCurrencyProviders();
-
-    ProviderModel.find({}).select(fields).exec(function(err, result) {
-        req.responseObject = result || {};
-        next();
-    });
-
+exports.getAvailableProviders = function(req, res) {
+    res.json(require('../providers/providers'));
 };
 
 exports.getCurrencyRatesByProvider = function(req, res, next) {
-
     var reqestedProvider = req.param('provider');
-    var ProviderModel = mongoose.model('Provider', ProviderSchema);
-    var fields = '-_id -__v -recordTable._id -recordTable.currencyTable._id';
-
-    ProviderModel.findOne({title: reqestedProvider}).select(fields).exec(function(error, result) {
-        req.responseObject = result.toJSON() || {};
+    async.waterfall([
+        async.apply(updaters.getProviderAsync, reqestedProvider)
+    ], function(err, mongooseDocument){
+        var result = {};
+        if (mongooseDocument) {
+            result = mongooseDocument.toJSON();
+            delete result._id;
+        }
+        req.responseObject = result;
         next();
     });
-
 };
 
 exports.getCurrencyRatesByProviderByDate = function(req, res, next) {
-
-    var requestedDateFrom = req.param('dateFrom');
-
-    if (req.responseObject.title) {
+    var dateParam = req.param('dateFrom');
+    if (typeof(req.responseObject.recordTable) !== 'undefined') {
         var currencyRecordsTable = req.responseObject.recordTable;
-        req.responseObject.recordTable = filterRecordsByDate(currencyRecordsTable, requestedDateFrom);
-    };
+//        console.log(typeof req.responseObject);
+        req.responseObject.recordTable = filterRecordsByDate(currencyRecordsTable, dateParam);
 
+    };
     next();
 };
 
 exports.getCurrencyRatesByProviderByDateByCurrency = function(req, res, next) {
-
     var requestedCurrency = req.param('currency');
-
-    if(req.responseObject.recordTable.length > 0) {
+    if(typeof(req.responseObject.recordTable) !== 'undefined' && req.responseObject.recordTable.length > 0) {
         var currencyRecordTable = req.responseObject.recordTable;
         req.responseObject.recordTable = filterRecordsByCurrency(currencyRecordTable, requestedCurrency);
     }
-
     next();
 };
 
 exports.renderResponse = function(req, res) {
-    res.json(req.responseObject);
+    res.json(req.responseObject || {});
 };
 
 function filterRecordsByDate(allCurrencyRates, requestedDateFrom) {
-
     var requestedCurrencyHistory = [];
-
-    if (isValidDate(requestedDateFrom)) {
+    if (requestedDateFrom.match(/\d{4}-\d{2}-\d{2}/) && isValidDate(requestedDateFrom)) {
         async.filter(allCurrencyRates, function(item, callback) {
-
-            callback(moment(item.date).isAfter(moment(requestedDateFrom)));
-
+            callback(!moment(item.date).isBefore(moment(requestedDateFrom)));
         }, function(results) {
             requestedCurrencyHistory = results;
         });
     }
-
     return requestedCurrencyHistory;
 };
 
 function filterRecordsByCurrency(currencyRecordTable, requestedCurrency) {
     var requestedCurrencyHistory = [];
-
     async.each(currencyRecordTable, function(record, callback) {
-
         var currencyRecord;
-
         async.filter(record.currencyTable, function(item, callback) {
             callback(item['isoCode'] === requestedCurrency);
         }, function(results) {
             currencyRecord = results[0];    // only one element inside the array
         })
-
         if (currencyRecord !== undefined) {
             requestedCurrencyHistory.push({
                 'date': record.date,
@@ -234,96 +74,15 @@ function filterRecordsByCurrency(currencyRecordTable, requestedCurrency) {
                 'currencyRates': currencyRecord['currencyRates']
             });
         }
-
-    }, function(error) {
-
-    });
-
+    }, function(error) {});
     return requestedCurrencyHistory;
 };
 
 function isValidDate(givenDate) {
-
     var isValidDate = false;
     var safeGivenDate = moment(givenDate, 'YYYY-MM-DD', true);
-
-    if (safeGivenDate.isValid() && safeGivenDate.isBefore(moment())) {
+    if (safeGivenDate.isValid() && !safeGivenDate.isAfter(moment())) {
         isValidDate = true;
     }
     return isValidDate;
 };
-
-function constructCurrencyProviders() {
-
-    var ProviderModel = mongoose.model('Provider', ProviderSchema);
-
-    var options = { upsert: true };
-
-    var query = { 'title': 'Danskebank' };
-    var update = constructDanskebank();
-    ProviderModel.findOneAndUpdate(query, update, options, function(err, result) { });
-
-    var query = { 'title': 'Swedbank' };
-    var update = constructSwedbank();
-//    ProviderModel.findOneAndUpdate(query, update, options, function(err, result) { });
-
-};
-
-function constructSwedbank() {
-    var swedbankdISO = ['AUD', 'BGN', 'CAD', 'CHF', 'CZK', 'DKK', 'EUR', 'GBP', 'HKD', 'HRK', 'HUF', 'JPY', 'NOK', 'PLN',
-        'RON', 'RSD', 'RUB', 'SEK', 'SGD', 'USD'];
-    var bankObject = {
-        "title": "Swedbank",
-        "websiteData": {
-            "URL": "http://www.swedbank.lt/lt/pages/privatiems/valiutu_kursai",
-            "tableSelector": ".dataTable",
-            "headerRows": 2
-        },
-        "recordTable": constructRecordTable(constructCurrencyTable(swedbankdISO))
-    };
-    return bankObject;
-};
-
-function constructDanskebank() {
-    var danskeBankISO = ['EUR', 'USD', 'GBP', 'PLN', 'SEK', 'NOK', 'DKK', 'CZK', 'CHF', 'AUD', 'BGN', 'HKD', 'ILS',
-        'AED', 'JPY', 'CAD', 'MXN', 'TRY', 'NZD', 'ZAR', 'RON', 'RUB', 'SAR', 'SGD', 'TND', 'HUF'];
-    var bankObject = {
-        "title": "Danskebank",
-        "websiteData": {
-            "URL": "http://www.danskebank.lt/index.php/privatiems/kasdienes-paslaugos/valiutos-keitimas/60",
-            "tableSelector": "#element_currencies_table tbody",
-            "headerRows": 5
-        },
-        "recordTable": constructRecordTable(constructCurrencyTable(danskeBankISO))
-    }
-    return bankObject;
-};
-
-function constructCurrencyTable(ISOarray) {
-    var currencyTable = [];
-    for(var i = 0; i < ISOarray.length; i++) {
-        currencyTable.push({
-            'isoCode': ISOarray[i],
-            'delta': '',
-            'currencyRates': ['1', '1', '1', '1']
-        });
-    }
-    return currencyTable;
-};
-
-function constructRecordTable(currencyTable) {
-    var recordTable = [];
-
-    var newestRecord = moment().startOf('day');
-    var oldestRecord = moment().subtract(90,'days').startOf('day');
-
-    while(oldestRecord.isBefore(newestRecord)) {
-        recordTable.push({
-            'date': newestRecord.format('YYYY-MM-DD'),
-            'currencyTable': currencyTable
-        });
-        newestRecord.subtract(1,'days');
-    }
-
-    return recordTable;
-}

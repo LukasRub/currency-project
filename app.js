@@ -8,6 +8,7 @@ var bodyParser = require('body-parser');
 var routes = require('./routes/index');
 var rates = require('./routes/rates');
 var scrapers = require('./tools/scrapers');
+var updaters = require('./tools/updaters');
 
 var app = express();
 
@@ -27,11 +28,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 //setInterval(function(){
 //    scrapers.updateAllCurrencyProviders();
 //}, 5*1000);
-
+updaters.initialDatabaseCheck();
 scrapers.updateAllCurrencyProviders();
 
 app.use('/', routes);
-app.use('/rates', rates.getAvailableProviders);
+app.get('/rates', rates.getAvailableProviders);
 app.use('/rates/:provider', rates.getCurrencyRatesByProvider);
 app.use('/rates/:provider/:dateFrom', rates.getCurrencyRatesByProviderByDate);
 app.use('/rates/:provider/:dateFrom/:currency', rates.getCurrencyRatesByProviderByDateByCurrency);
@@ -68,6 +69,5 @@ app.use(function(err, req, res, next) {
         error: {}
     });
 });
-
 
 module.exports = app;
