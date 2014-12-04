@@ -4,11 +4,12 @@ var favicon = require('serve-favicon');
 var logger = require('morgan');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
+var schedule = require('node-schedule');
 
 var routes = require('./routes/index');
 var rates = require('./routes/rates');
-var scrapers = require('./tools/scrapers');
-var updaters = require('./tools/updaters');
+var updater = require('./tools/updater');
+var databaseOperator = require('./tools/databaseOperator');
 
 var app = express();
 
@@ -25,11 +26,13 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-//setInterval(function(){
-//    scrapers.updateAllCurrencyProviders();
-//}, 5*1000);
-updaters.initialDatabaseCheck();
-scrapers.updateAllCurrencyProviders();
+databaseOperator.initialise();
+
+var rule = new schedule.RecurrenceRule();
+rule.minute = 59;
+schedule.scheduleJob(rule, function(){
+    updater.updateAllCurrencyProviders();
+});
 
 app.use('/', routes);
 app.get('/rates', rates.getAvailableProviders);
