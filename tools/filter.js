@@ -8,9 +8,11 @@ var async = require('async');
 module.exports = {
     filterRecordsByDate: function(allCurrencyRates, requestedDateFrom) {
         var requestedCurrencyHistory = [];
-        if (requestedDateFrom.match(/\d{4}-\d{2}-\d{2}/) && validator.isValidDate(requestedDateFrom)) {
+        if (requestedDateFrom.match(/\d{4}-\d{2}-\d{2}/) && validator.isValidDateString(requestedDateFrom)) {
             async.filter(allCurrencyRates, function(item, callback) {
-                callback(!moment(item.date).isBefore(moment(requestedDateFrom)));
+                callback(
+                    (item.hasOwnProperty('date')) ? !moment(item.date).isBefore(moment(requestedDateFrom)) : false
+                );
             }, function(results) {
                 requestedCurrencyHistory = results;
             });
@@ -19,22 +21,24 @@ module.exports = {
     },
     filterRecordsByCurrency: function(currencyRecordTable, requestedCurrency) {
         var requestedCurrencyHistory = [];
-        async.each(currencyRecordTable, function(record, callback) {
-            var currencyRecord;
-            async.detect(record.currencyTable, function(item, callback) {
-                callback(item['isoCode'] === requestedCurrency);
-            }, function(results) {
-                currencyRecord = results;
-            })
-            if (currencyRecord !== undefined) {
-                requestedCurrencyHistory.push({
-                    'date': record.date,
-                    'isoCode': currencyRecord['isoCode'],
-                    'delta': currencyRecord['delta'],
-                    'currencyRates': currencyRecord['currencyRates']
-                });
-            }
-        }, function(error) {});
+        if (currencyRecordTable)
+            async.each(currencyRecordTable, function(record) {
+                var currencyRecord = false;
+                if (record.hasOwnProperty('currencyTable'))
+                    async.detect(record.currencyTable, function(item, callback) {
+                        callback(item.hasOwnProperty('isoCode') ? item.isoCode === requestedCurrency : false);
+                    }, function(results) {
+                        currencyRecord = results;
+                    });
+                if (currencyRecord) {
+                    requestedCurrencyHistory.push({
+                        'date': record.date,
+                        'isoCode': currencyRecord.isoCode,
+                        'delta': currencyRecord.delta,
+                        'currencyRates': currencyRecord.currencyRates
+                    });
+                }
+            }, function(error) {});
         return requestedCurrencyHistory;
     }
-}
+};

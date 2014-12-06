@@ -4,17 +4,19 @@
 var moment = require('moment');
 
 module.exports = {
-    isValidDate: function(givenDate) {
+    isValidDateString: function(givenDate) {
         var isValidDate = false;
-        var safeGivenDate = moment(givenDate, 'YYYY-MM-DD', true);
-        if (safeGivenDate.isValid() && !safeGivenDate.isAfter(moment())) {
-            isValidDate = true;
+        if (typeof givenDate == 'string') {
+            var safeGivenDate = moment(givenDate, 'YYYY-MM-DD', true);
+            if (safeGivenDate.isValid() && !safeGivenDate.isAfter(moment())) {
+                isValidDate = true;
+            }
         }
         return isValidDate;
     },
     doesDeltaExist: function(providerObject, newRecordDate) {
-    return !((providerObject.dateUpdated === null)
-        || (moment(providerObject.dateUpdated).isSame(newRecordDate, 'day')
-            && (providerObject.recordTable.length === 1)));
-}
-}
+        return (providerObject.dateUpdated !== null)
+            && (moment(providerObject.dateUpdated).isBefore(newRecordDate, 'day')
+                && (providerObject.recordTable.length >= 1));
+    }
+};
