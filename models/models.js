@@ -9,7 +9,7 @@ var currencySchema = new mongoose.Schema({
     currencyRates: [String]
 });
 
-var recordSchema = recordSchema = new mongoose.Schema({
+var recordSchema = new mongoose.Schema({
     date: String,
     currencyTable: [currencySchema]
 });

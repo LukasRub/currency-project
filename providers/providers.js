@@ -15,6 +15,7 @@ module.exports = [
         },
         supportedCurrencies: ['AUD', 'BGN', 'CAD', 'CHF', 'CZK', 'DKK', 'EUR', 'GBP', 'HKD', 'HRK', 'HUF', 'JPY', 'NOK',
             'PLN', 'RON', 'RSD', 'RUB', 'SEK', 'SGD', 'USD'],
+        numberOfRates: 4,
         rowFormatter: function(data) {
             var formattedArray = [
                 data.children(0).text().replace(/\([^)]*\)/g, '').trim(),
@@ -40,13 +41,15 @@ module.exports = [
         },
         supportedCurrencies: ['EUR', 'USD', 'GBP', 'PLN', 'SEK', 'NOK', 'DKK', 'CZK', 'CHF', 'AUD', 'BGN', 'HKD', 'ILS',
             'AED', 'JPY', 'CAD', 'MXN', 'TRY', 'NZD', 'ZAR', 'RON', 'RUB', 'SAR', 'SGD', 'TND', 'HUF'],
+        numberOfRates: 4,
         rowFormatter: function(data) {
             var formattedArray = data.children().next('td.cell:not(.cell_3)')
                 .text().trim().replace(/\s\s+/g, ' ').split(' ');
             var quantity = data.children('td.cell_3').text();
             for(var i = 1; i < formattedArray.length; i++) {
-                if (!isNaN(formattedArray[i]))
+                if (!isNaN(formattedArray[i])) {
                     formattedArray[i] = (formattedArray[i] / quantity).toPrecision(5);
+                }
             }
             return (formattedArray[0]) ? formattedArray : null;
         },
@@ -54,37 +57,38 @@ module.exports = [
             return data;
         }
     },
-    {
-        title: 'DNB',
-        baseCurrency: 'LT',
-        scrapPageData: {
-            URL: 'https://www.dnb.lt/lt/naudinga-informacija/valiutu-kursai',
-            XML: false,
-            tableSelector: '.coolTable',
-            tableHeaderRows: 2
-        },
-        supportedCurrencies: ['CNY', 'USD', 'NZD', 'KZT', 'HUF', 'GBP', 'NOK', 'RUB', 'AUD', 'CAD', 'CHF', 'DKK', 'EUR',
-        'JPY', 'SEK', 'BYR', 'PLN', 'CZK'],
-        rowFormatter: function(data) {
-            var formattedArray = [
-                data.children(0).text(),
-                data.children(5).text(),
-                data.children(6).text(),
-                data.children(3).text(),
-                data.children(4).text()
-            ];
-            var quantity = data.children(2).text();
-            for(var i = 1; i < formattedArray.length; i++) {
-                if (!isNaN(formattedArray[i]))
-                    formattedArray[i] = (formattedArray[i] / quantity).toPrecision(5);
-            }
-            return formattedArray;
-        },
-        tableFormatter: function(data) {
-            data.pop();
-            return data;
-        }
-    },
+//    {
+//        title: 'DNB',
+//        baseCurrency: 'LT',
+//        scrapPageData: {
+//            URL: 'https://www.dnb.lt/lt/naudinga-informacija/valiutu-kursai',
+//            XML: false,
+//            tableSelector: '.coolTable',
+//            tableHeaderRows: 2
+//        },
+//        supportedCurrencies: ['CNY', 'USD', 'NZD', 'KZT', 'HUF', 'GBP', 'NOK', 'RUB', 'AUD', 'CAD', 'CHF', 'DKK', 'EUR',
+//        'JPY', 'SEK', 'BYR', 'PLN', 'CZK'],
+//        numberOfRates: 4,
+//        rowFormatter: function(data) {
+//            var formattedArray = [
+//                data.children(0).text(),
+//                data.children(5).text(),
+//                data.children(6).text(),
+//                data.children(3).text(),
+//                data.children(4).text()
+//            ];
+//            var quantity = data.children(2).text();
+//            for(var i = 1; i < formattedArray.length; i++) {
+//                if (!isNaN(formattedArray[i]))
+//                    formattedArray[i] = (formattedArray[i] / quantity).toPrecision(5);
+//            }
+//            return formattedArray;
+//        },
+//        tableFormatter: function(data) {
+//            data.pop();
+//            return data;
+//        }
+//    },
     {
         title: 'SEB',
         baseCurrency: 'LT',
@@ -92,10 +96,11 @@ module.exports = [
             URL: 'https://e.seb.lt/mainib/web.p?act=currencyrates&lang=ENG',
             XML: false,
             tableSelector: 'table tbody',
-            tableHeaderRows: 2
+            tableHeaderRows: 0
         },
-        supportedCurrencies: ['AUD', 'BYR', 'BGN', 'CZK', 'DKK', 'GBP', 'EUR', 'HKD', 'INR', 'ILS', 'JPY', 'USD', 'CAD',
-        'KZT', 'CNY', 'HRK', 'PLN', 'MXN', 'TRY', 'NZD', 'NOK', 'ZAR', 'RON', 'RUB', 'RSD', 'SGD', 'SEK', 'CHF', 'HUF'],
+        supportedCurrencies: ['AUD', 'BYR', 'BGN', 'CAD', 'CNY', 'HRK', 'CZK', 'DKK', 'EUR', 'HKD', 'HUF', 'INR', 'ILS',
+        'JPY', 'KZT', 'MXN', 'TRY', 'NZD', 'NOK', 'PLN', 'GBP', 'RON', 'RUB', 'RSD', 'SGD', 'ZAR', 'SEK', 'CHF', 'USD'],
+        numberOfRates: 4,
         rowFormatter: function(data) {
             var formattedArray = [data.data('crc')].concat(
                 data.children('td.right.nowrap').text().trim()
@@ -105,8 +110,9 @@ module.exports = [
             );
             var quantity = data.children('td.center').text();
             for(var i = 1; i < formattedArray.length; i++) {
-                if (!isNaN(formattedArray[i]))
+                if (!isNaN(formattedArray[i])) {
                     formattedArray[i] = (formattedArray[i] / quantity).toPrecision(5);
+                }
             }
             return (formattedArray[0]) ? formattedArray : null;
         },
@@ -118,8 +124,8 @@ module.exports = [
         title: 'Lietuvos bankas',
         baseCurrency: 'LT',
         scrapPageData: {
-            URL: 'http://www.lb.lt/webservices/ExchangeRates/ExchangeRates.asmx/getExchangeRatesByDate?Date='
-                + require('moment')().format('YYYY-MM-DD'),
+            URL: 'http://www.lb.lt/webservices/ExchangeRates/ExchangeRates.asmx/getExchangeRatesByDate?Date=' +
+                require('moment')().format('YYYY-MM-DD'),
             XML: true,
             tableSelector: 'ExchangeRates',
             tableHeaderRows: 0
@@ -130,6 +136,7 @@ module.exports = [
         'KZT', 'LBP', 'LKR', 'MAD', 'MDL', 'MGA', 'MYR', 'MKD', 'MNT', 'MXN', 'MZN', 'NOK', 'NZD', 'PAB', 'PEN', 'PHP',
         'PKR', 'PLN', 'QAR', 'RON', 'RSD', 'RUB', 'SAR', 'SEK', 'SGD', 'SYP', 'THB', 'TJS', 'TMT', 'TND', 'TRY', 'TWD',
         'TZS', 'UAH', 'UYU', 'USD', 'UZS', 'VEF', 'VND', 'XAF', 'XDR', 'XOF', 'ZAR'],
+        numberOfRates: 1,
         rowFormatter: function(data) {
             var formattedArray = [
                 data.children('currency').text(),
@@ -155,6 +162,7 @@ module.exports = [
         supportedCurrencies: ['USD', 'JPY', 'BGN', 'CZK', 'DKK', 'GBP', 'HUF', 'LTL', 'PLN', 'RON', 'SEK', 'CHF', 'NOK',
         'HRK', 'RUB', 'TRY', 'AUD', 'BRL', 'CAD', 'CNY', 'HKD', 'IDR', 'ILS', 'INR', 'KRW', 'MXN', 'MYR', 'NZD', 'PHP',
         'SGD', 'THB', 'ZAR'],
+        numberOfRates: 1,
         rowFormatter: function(data) {
             var formattedArray = [data.attr('currency'), data.attr('rate')];
             return formattedArray;
@@ -162,6 +170,8 @@ module.exports = [
         tableFormatter: function(data) {
             return data;
         }
+    },
+    {
+        title: 'test'
     }
-
 ];

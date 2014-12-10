@@ -23,15 +23,15 @@ module.exports = {
     },
     getCurrencyRatesByProviderByDate: function(req, res, next) {
         var dateParam = req.param('dateFrom');
-        if (typeof(req.responseObject.recordTable) !== 'undefined') {
+        if (req.responseObject.recordTable !== 'undefined') {
             var currencyRecordsTable = req.responseObject.recordTable;
             req.responseObject.recordTable = filter.filterRecordsByDate(currencyRecordsTable, dateParam);
-        };
+        }
         next();
     },
     getCurrencyRatesByProviderByDateByCurrency: function(req, res, next) {
         var requestedCurrency = req.param('currency');
-        if(typeof(req.responseObject.recordTable) !== 'undefined' && req.responseObject.recordTable.length > 0) {
+        if(req.responseObject.recordTable !== 'undefined' && req.responseObject.recordTable.length > 0) {
             var currencyRecordTable = req.responseObject.recordTable;
             req.responseObject.recordTable = filter.filterRecordsByCurrency(currencyRecordTable, requestedCurrency);
         }
@@ -40,4 +40,4 @@ module.exports = {
     renderResponse: function(req, res) {
         res.json(req.responseObject || {});
     }
-}
+};

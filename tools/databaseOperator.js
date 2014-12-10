@@ -5,9 +5,8 @@ var moment = require('moment');
 var bluebird = require('bluebird');
 var mongoose = bluebird.promisifyAll(require('mongoose'));
 
-var models = require('../models/models.js');
-var providers = require('../providers/providers.js');
-
+var models = require('../models/models');
+var providers = require('../providers/providers');
 mongoose.connect('mongodb://localhost/myDB');
 
 module.exports = {
@@ -22,7 +21,7 @@ module.exports = {
                         dateUpdated: null,
                         recordTable: []
                     };
-                    ProviderModel.create(newProvider).then(function(result){});
+                    ProviderModel.create(newProvider).then();
                 }
             });
         });

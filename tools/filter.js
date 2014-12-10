@@ -8,7 +8,7 @@ var async = require('async');
 module.exports = {
     filterRecordsByDate: function(allCurrencyRates, requestedDateFrom) {
         var requestedCurrencyHistory = [];
-        if (requestedDateFrom.match(/\d{4}-\d{2}-\d{2}/) && validator.isValidDateString(requestedDateFrom)) {
+        if (requestedDateFrom.match(/^(\d{4}-\d{2}-\d{2})$/gm) && validator.isValidDateString(requestedDateFrom)) {
             async.filter(allCurrencyRates, function(item, callback) {
                 callback(
                     (item.hasOwnProperty('date')) ? !moment(item.date).isBefore(moment(requestedDateFrom)) : false
@@ -21,15 +21,16 @@ module.exports = {
     },
     filterRecordsByCurrency: function(currencyRecordTable, requestedCurrency) {
         var requestedCurrencyHistory = [];
-        if (currencyRecordTable)
-            async.each(currencyRecordTable, function(record) {
+        if (currencyRecordTable) {
+            async.each(currencyRecordTable, function (record) {
                 var currencyRecord = false;
-                if (record.hasOwnProperty('currencyTable'))
-                    async.detect(record.currencyTable, function(item, callback) {
+                if (record.hasOwnProperty('currencyTable')) {
+                    async.detect(record.currencyTable, function (item, callback) {
                         callback(item.hasOwnProperty('isoCode') ? item.isoCode === requestedCurrency : false);
-                    }, function(results) {
+                    }, function (results) {
                         currencyRecord = results;
                     });
+                }
                 if (currencyRecord) {
                     requestedCurrencyHistory.push({
                         'date': record.date,
@@ -38,7 +39,8 @@ module.exports = {
                         'currencyRates': currencyRecord.currencyRates
                     });
                 }
-            }, function(error) {});
+            }, function (error){});
+        }
         return requestedCurrencyHistory;
     }
 };

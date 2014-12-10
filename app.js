@@ -1,6 +1,6 @@
 var express = require('express');
 var path = require('path');
-var favicon = require('serve-favicon');
+//var favicon = require('serve-favicon');
 var logger = require('morgan');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
@@ -33,6 +33,7 @@ rule.minute = 59;
 schedule.scheduleJob(rule, function(){
     updater.updateAllCurrencyProviders();
 });
+updater.updateAllCurrencyProviders();
 
 app.use('/', routes);
 app.get('/rates', rates.getAvailableProviders);

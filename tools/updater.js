@@ -14,32 +14,37 @@ var validator = require('./validator');
 
 exports.updateAllCurrencyProviders = function() {
     providers.forEach(function(provider){
-        async.seq(
-            updater.scrapProvider,
-            updater.formatRawData,
-            updater.findDeltas
-        )(provider, function(err, provider, newRecord){
-            databaseOperator.saveNewData(provider, newRecord);
-        });
+        if (provider.title !== 'test') {
+            async.seq(
+                updater.scrapProvider,
+                updater.formatRawData,
+                updater.findDeltas
+            )(provider, function(err, provider, newRecord){
+                if (newRecord.currencyTable.length > 0) {
+                    databaseOperator.saveNewData(provider, newRecord);
+                }
+            });
+        }
     });
 };
 
-var updater = {
+var updater = exports.updater = {
     scrapProvider: function(bankObject, callback) {
         var scrapResults = [];
         request(bankObject.scrapPageData.URL).spread(function(response, body) {
-            var $ = cheerio.load(body, {
+            var cheerioObject = cheerio.load(body, {
                 normalizeWhitespace: true,
                 xmlMode: bankObject.scrapPageData.XML
             });
             var index = 0;
-            var rawData = $(bankObject.scrapPageData.tableSelector)
+            var rawData = cheerioObject(bankObject.scrapPageData.tableSelector)
                 .children()
                 .slice(bankObject.scrapPageData.tableHeaderRows);
             async.each(rawData, function(row){
-                var rowFormatterResult = bankObject.rowFormatter($(row));
-                if (rowFormatterResult)
+                var rowFormatterResult = bankObject.rowFormatter(cheerioObject(row));
+                if (rowFormatterResult) {
                     scrapResults[index++] = rowFormatterResult;
+                }
             });
         }).finally(function(){
             callback(null, bankObject.tableFormatter(scrapResults), bankObject.title);
@@ -52,12 +57,11 @@ var updater = {
         };
         var index = 0;
         async.each(rawData, function(row) {
-            var currencyRecord =
-                record.currencyTable[index++] = {
-                    isoCode: row[0],
-                    delta: "",
-                    currencyRates: row.slice(1)
-                };
+             record.currencyTable[index++] = {
+                isoCode: row[0],
+                delta: "",
+                currencyRates: row.slice(1)
+            };
         });
         callback(null, record, providerTitle);
     },
@@ -83,22 +87,31 @@ var updater = {
             }
             callback(null, providerObject, newRecord);
         });
-    },
-}
+    }
+};
 
-var helpers = {
+var helpers = exports.helpers = {
     findLatestRecordIndex: function(recordTable, newRecordDate) {
-        return moment(recordTable[0].date).isSame(newRecordDate, 'day') ? 1 : 0;
+        return (recordTable && recordTable[0].hasOwnProperty('date') && validator.isValidDateString(newRecordDate)) ?
+            (moment(recordTable[0].date).isSame(newRecordDate, 'day') ? 1 : 0)
+            : false;
     },
     determineDelta: function(newValue, latestValue){
         var deltaDictionary = {
             '0': '=',
             '-1': '>',
-            '1': '<'
+            '1': '<',
+            false: ''
         };
         return deltaDictionary[helpers.valueCompare(newValue, latestValue)];
     },
     valueCompare: function(first, second) {
-        return (first > second ? -1 : (first < second ? 1 : 0));
+        var firstFloat = parseFloat(first);
+        var secondFloat = parseFloat(second);
+        var compare = false;
+        if (!isNaN(firstFloat) && !isNaN(secondFloat)) {
+            compare = (firstFloat > secondFloat ? -1 : firstFloat < secondFloat ? 1 : 0);
+        }
+        return compare;
     }
-}
+};
