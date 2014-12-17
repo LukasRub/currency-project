@@ -1,7 +1,14 @@
 doctype html
-html
-  head
-    title= title
-    link(rel='stylesheet', href='/stylesheets/style.css')
-  body
-    block content
+html(ng-app='currency-project')
+    head
+        title= title
+        link(rel='stylesheet', href='/stylesheets/style.css')
+        link(rel='stylesheet', href='/stylesheets/bootstrap.min.css')
+        script(src='/javascripts/angular.min.js')
+        script(src='/javascripts/jquery.min.js')
+        script(src='/javascripts/global.js')
+    body(ng-controller='CurrencyController as currency')
+        h1= title
+        p Welcome to #{title}
+        select(class='form-control', style='width: 300px')
+            option(ng-repeat='provider in currency.providers', value='{{provider.title}}') {{provider.title}}
