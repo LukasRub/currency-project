@@ -170,8 +170,8 @@ module.exports = [
         tableFormatter: function(data) {
             return data;
         }
-    },
-    {
-        title: 'test'
     }
+//    {
+//        title: 'test'
+//    }
 ];

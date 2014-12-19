@@ -9,6 +9,18 @@ html(ng-app='currency-project')
         script(src='/javascripts/global.js')
     body(ng-controller='CurrencyController as currency')
         h1= title
-        p Welcome to #{title}
-        select(class='form-control', style='width: 300px')
-            option(ng-repeat='provider in currency.providers', value='{{provider.title}}') {{provider.title}}
+        select(class='form-control', style='width: 300px',
+            ng-model='selectedItem', ng-options='provider.title for provider in currency.providerData')
+        div
+        table(class='table table-condensed table-bordered' style='width: 450px')
+            caption Atnaujinta: {{selectedItem.dateUpdated}}
+            thead(style='font-weight: bold')
+                tr
+                    td Valiuta
+                    td Kursas
+                    td Pokytis
+            tbody
+                tr(ng-repeat='recordRow in selectedItem.recordTable[0].currencyTable')
+                    td {{recordRow.isoCode}}
+                    td {{recordRow.currencyRates[recordRow.currencyRates.length-1]}}
+                    td {{recordRow.delta}}
